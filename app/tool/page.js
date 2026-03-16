@@ -90,40 +90,69 @@ async function handleSubscribe(priceId) {
   }
 
   function processCSV(text) {
-    const lines = text.trim().split(/\r?\n/)
-    if (lines.length < 2) return
-    const rows = []
+  const lines = text.trim().split(/\r?\n/)
+  if (lines.length < 2) return
+  const rows = []
 
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',')
-      if (cols.length < 13) continue
-      const symbol = cols[0]
-      const qty = cols[6]
-      const buyPrice = parseFloat(cols[7])
-      const sellPrice = parseFloat(cols[8])
-      const pnl = parsePnl(cols[9])
-      const date = parseDate(cols[10])
-      const duration = cols[12]
-      rows.push({ date, symbol, qty, buyPrice: buyPrice.toFixed(2), sellPrice: sellPrice.toFixed(2), pnl, duration })
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',')
+    if (cols.length < 13) continue
+    const symbol = cols[0]
+    const qty = cols[6]
+    const buyPrice = parseFloat(cols[7])
+    const sellPrice = parseFloat(cols[8])
+    const pnl = parsePnl(cols[9])
+    const date = parseDate(cols[10])
+    const duration = cols[12]
+    const result = pnl >= 0 ? 'Win' : 'Loss'
+    const isWin = pnl >= 0 ? 1 : 0
+    rows.push({
+      date, symbol, qty,
+      buyPrice: buyPrice.toFixed(2),
+      sellPrice: sellPrice.toFixed(2),
+      pnl, duration, result, isWin
+    })
+  }
+
+  setCleanedRows(rows)
+  setUploaded(true)
+}
+
+ async function downloadZip() {
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
+
+  // CSV 1 — Trades
+  const tradeHeaders = ['Name', 'Date', 'Symbol', 'Qty', 'Entry Price', 'Exit Price', 'P&L', 'Result', 'Is Win']
+const tradeRows = cleanedRows.map(r => [
+  'Trade Review',
+  r.date, r.symbol, r.qty, r.buyPrice, r.sellPrice,
+  r.pnl.toFixed(2), r.result, r.isWin
+])
+  const tradesCSV = [tradeHeaders, ...tradeRows].map(r => r.join(',')).join('\n')
+  zip.file('1_trades.csv', tradesCSV)
+
+  // CSV 2 — Daily Summary
+  const dailyMap = {}
+  cleanedRows.forEach(r => {
+    if (!dailyMap[r.date]) {
+      dailyMap[r.date] = { date: r.date }
     }
+  })
+  const dailyHeaders = ['Name', 'Date']
+  const dailyRows = Object.values(dailyMap).map(d => [
+    'Trading Diary', d.date
+  ])
+  const dailyCSV = [dailyHeaders, ...dailyRows].map(r => r.join(',')).join('\n')
+  zip.file('2_daily_summary.csv', dailyCSV)
 
-    setCleanedRows(rows)
-    setUploaded(true)
-  }
-
-  function downloadCSV() {
-    const headers = ['Date', 'Symbol', 'Qty', 'Entry Price', 'Exit Price', 'P&L', 'Duration', 'Result']
-    const rows = cleanedRows.map(r => [
-      r.date, r.symbol, r.qty, r.buyPrice, r.sellPrice,
-      r.pnl.toFixed(2), r.duration, r.pnl >= 0 ? 'Win' : 'Loss'
-    ])
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = 'notion_ready_trades.csv'
-    a.click()
-  }
+  // Download zip
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'notion_ready_import.zip'
+  a.click()
+}
 
   if (loading) {
     return (
@@ -275,8 +304,8 @@ if (!subscribed) {
             <button onClick={() => { setUploaded(false); setCleanedRows([]); setFileName('') }} style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: '1px solid #ddd', background: 'none', cursor: 'pointer', flex: 1 }}>
               Upload new file
             </button>
-            <button onClick={downloadCSV} style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#0e0e0e', color: '#fff', cursor: 'pointer', flex: 2 }}>
-              Download for Notion
+            <button onClick={downloadZip} style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#0e0e0e', color: '#fff', cursor: 'pointer', flex: 2 }}>
+            Download for Notion
             </button>
           </div>
         </>
