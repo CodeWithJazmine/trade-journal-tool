@@ -11,6 +11,7 @@ export default function ToolPage() {
   const [canceling, setCanceling] = useState(false)
   const [canceled, setCanceled] = useState(false)
   const [periodEnd, setPeriodEnd] = useState(null)
+  const [accountName, setAccountName] = useState('')
 
   useEffect(() => {
     checkSubscription()
@@ -30,15 +31,21 @@ export default function ToolPage() {
     }
   }
 
-async function handleSubscribe(priceId) {
-  const res = await fetch('/api/checkout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ priceId })
-  })
-  const data = await res.json()
-  if (data.url) window.location.href = data.url
-}
+  async function handleSubscribe(priceId) {
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceId })
+      })
+      const text = await res.text()
+      const data = JSON.parse(text)
+      if (data.url) window.location.href = data.url
+    } catch (e) {
+      console.error('Checkout error:', e)
+      alert('Something went wrong. Please try again.')
+    }
+  }
 
   async function handleCancel() {
     if (!confirm('Are you sure you want to cancel your subscription? You will keep access until the end of your billing period.')) return
@@ -90,69 +97,62 @@ async function handleSubscribe(priceId) {
   }
 
   function processCSV(text) {
-  const lines = text.trim().split(/\r?\n/)
-  if (lines.length < 2) return
-  const rows = []
+    const lines = text.trim().split(/\r?\n/)
+    if (lines.length < 2) return
+    const rows = []
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',')
-    if (cols.length < 13) continue
-    const symbol = cols[0]
-    const qty = cols[6]
-    const buyPrice = parseFloat(cols[7])
-    const sellPrice = parseFloat(cols[8])
-    const pnl = parsePnl(cols[9])
-    const date = parseDate(cols[10])
-    const duration = cols[12]
-    const result = pnl >= 0 ? 'Win' : 'Loss'
-    const isWin = pnl >= 0 ? 1 : 0
-    rows.push({
-      date, symbol, qty,
-      buyPrice: buyPrice.toFixed(2),
-      sellPrice: sellPrice.toFixed(2),
-      pnl, duration, result, isWin
-    })
+    for (let i = 1; i < lines.length; i++) {
+      const cols = lines[i].split(',')
+      if (cols.length < 13) continue
+      const symbol = cols[0]
+      const qty = cols[6]
+      const buyPrice = parseFloat(cols[7])
+      const sellPrice = parseFloat(cols[8])
+      const pnl = parsePnl(cols[9])
+      const date = parseDate(cols[10])
+      const result = pnl >= 0 ? 'Win' : 'Loss'
+      const isWin = pnl >= 0 ? 1 : 0
+      rows.push({
+        date, symbol, qty,
+        buyPrice: buyPrice.toFixed(2),
+        sellPrice: sellPrice.toFixed(2),
+        pnl, result, isWin
+      })
+    }
+
+    setCleanedRows(rows)
+    setUploaded(true)
   }
 
-  setCleanedRows(rows)
-  setUploaded(true)
-}
+  async function downloadZip() {
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
 
- async function downloadZip() {
-  const JSZip = (await import('jszip')).default
-  const zip = new JSZip()
+    const tradeHeaders = ['Name', 'Date', 'Symbol', 'Qty', 'Entry Price', 'Exit Price', 'P&L', 'Result', 'Is Win', 'Account']
+    const tradeRows = cleanedRows.map(r => [
+      'Trade Review',
+      r.date, r.symbol, r.qty, r.buyPrice, r.sellPrice,
+      r.pnl.toFixed(2), r.result, r.isWin,
+      accountName || ''
+    ])
+    const tradesCSV = [tradeHeaders, ...tradeRows].map(r => r.join(',')).join('\n')
+    zip.file('1_trades.csv', tradesCSV)
 
-  // CSV 1 — Trades
-  const tradeHeaders = ['Name', 'Date', 'Symbol', 'Qty', 'Entry Price', 'Exit Price', 'P&L', 'Result', 'Is Win']
-const tradeRows = cleanedRows.map(r => [
-  'Trade Review',
-  r.date, r.symbol, r.qty, r.buyPrice, r.sellPrice,
-  r.pnl.toFixed(2), r.result, r.isWin
-])
-  const tradesCSV = [tradeHeaders, ...tradeRows].map(r => r.join(',')).join('\n')
-  zip.file('1_trades.csv', tradesCSV)
+    const dailyMap = {}
+    cleanedRows.forEach(r => {
+      if (!dailyMap[r.date]) dailyMap[r.date] = { date: r.date }
+    })
+    const dailyHeaders = ['Name', 'Date']
+    const dailyRows = Object.values(dailyMap).map(d => ['Trading Diary', d.date])
+    const dailyCSV = [dailyHeaders, ...dailyRows].map(r => r.join(',')).join('\n')
+    zip.file('2_daily_summary.csv', dailyCSV)
 
-  // CSV 2 — Daily Summary
-  const dailyMap = {}
-  cleanedRows.forEach(r => {
-    if (!dailyMap[r.date]) {
-      dailyMap[r.date] = { date: r.date }
-    }
-  })
-  const dailyHeaders = ['Name', 'Date']
-  const dailyRows = Object.values(dailyMap).map(d => [
-    'Trading Diary', d.date
-  ])
-  const dailyCSV = [dailyHeaders, ...dailyRows].map(r => r.join(',')).join('\n')
-  zip.file('2_daily_summary.csv', dailyCSV)
-
-  // Download zip
-  const blob = await zip.generateAsync({ type: 'blob' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = 'notion_ready_import.zip'
-  a.click()
-}
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'notion_ready_import.zip'
+    a.click()
+  }
 
   if (loading) {
     return (
@@ -166,53 +166,49 @@ const tradeRows = cleanedRows.map(r => [
     )
   }
 
-if (!subscribed) {
-  return (
-    <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Journal Cleaner</h1>
-        <UserButton afterSignOutUrl="/" />
-      </div>
-
-      <div style={{ border: '1px solid #eee', borderRadius: '16px', padding: '2.5rem', textAlign: 'center', background: '#fafaf8' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: '500', marginBottom: '0.5rem' }}>Subscribe to get access</h2>
-        <p style={{ color: '#888', fontSize: '14px', marginBottom: '2rem', lineHeight: '1.6' }}>
-          Clean and import your Tradovate trades into Notion instantly.<br />
-          Cancel anytime.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
-          <div style={{ border: '1.5px solid #eee', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', background: '#fff' }}>
-            <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Monthly</p>
-            <p style={{ fontSize: '1.75rem', fontWeight: '500', marginBottom: '4px' }}>$4.99</p>
-            <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '1.25rem' }}>per month</p>
-            <button
-              onClick={() => handleSubscribe(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY)}
-              style={{ width: '100%', background: '#0e0e0e', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
-              Get started
-            </button>
-          </div>
-
-          <div style={{ border: '1.5px solid #0e0e0e', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', background: '#fff', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: '#0e0e0e', color: '#fff', fontSize: '11px', padding: '3px 12px', borderRadius: '99px', whiteSpace: 'nowrap' }}>
-              Best value
-            </div>
-            <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Yearly</p>
-            <p style={{ fontSize: '1.75rem', fontWeight: '500', marginBottom: '4px' }}>$39</p>
-            <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '1.25rem' }}>per year · save 35%</p>
-            <button
-              onClick={() => handleSubscribe(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_YEARLY)}
-              style={{ width: '100%', background: '#0e0e0e', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
-              Get started
-            </button>
-          </div>
+  if (!subscribed) {
+    return (
+      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Journal Cleaner</h1>
+          <UserButton afterSignOutUrl="/" />
         </div>
-
-        <p style={{ color: '#bbb', fontSize: '12px' }}>🔒 Your data never leaves your device</p>
-      </div>
-    </main>
-  )
-}
+        <div style={{ border: '1px solid #eee', borderRadius: '16px', padding: '2.5rem', textAlign: 'center', background: '#fafaf8' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: '500', marginBottom: '0.5rem' }}>Subscribe to get access</h2>
+          <p style={{ color: '#888', fontSize: '14px', marginBottom: '2rem', lineHeight: '1.6' }}>
+            Clean and import your Tradovate trades into Notion instantly.<br />
+            Cancel anytime.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
+            <div style={{ border: '1.5px solid #eee', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', background: '#fff' }}>
+              <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Monthly</p>
+              <p style={{ fontSize: '1.75rem', fontWeight: '500', marginBottom: '4px' }}>$4.99</p>
+              <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '1.25rem' }}>per month</p>
+              <button
+                onClick={() => handleSubscribe(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY)}
+                style={{ width: '100%', background: '#0e0e0e', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                Get started
+              </button>
+            </div>
+            <div style={{ border: '1.5px solid #0e0e0e', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', background: '#fff', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: '#0e0e0e', color: '#fff', fontSize: '11px', padding: '3px 12px', borderRadius: '99px', whiteSpace: 'nowrap' }}>
+                Best value
+              </div>
+              <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Yearly</p>
+              <p style={{ fontSize: '1.75rem', fontWeight: '500', marginBottom: '4px' }}>$39</p>
+              <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '1.25rem' }}>per year · save 35%</p>
+              <button
+                onClick={() => handleSubscribe(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_YEARLY)}
+                style={{ width: '100%', background: '#0e0e0e', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                Get started
+              </button>
+            </div>
+          </div>
+          <p style={{ color: '#bbb', fontSize: '12px' }}>🔒 Your data never leaves your device</p>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
@@ -300,12 +296,26 @@ if (!subscribed) {
             </table>
           </div>
 
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px' }}>
+              Account Name <span style={{ color: '#aaa', fontWeight: '400' }}>(optional)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Apex Funded, Personal, Tradovate Live"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+            />
+            <p style={{ fontSize: '11px', color: '#aaa', marginTop: '6px' }}>This will tag all imported trades with this account name in Notion.</p>
+          </div>
+
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={() => { setUploaded(false); setCleanedRows([]); setFileName('') }} style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: '1px solid #ddd', background: 'none', cursor: 'pointer', flex: 1 }}>
+            <button onClick={() => { setUploaded(false); setCleanedRows([]); setFileName(''); setAccountName('') }} style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: '1px solid #ddd', background: 'none', cursor: 'pointer', flex: 1 }}>
               Upload new file
             </button>
             <button onClick={downloadZip} style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#0e0e0e', color: '#fff', cursor: 'pointer', flex: 2 }}>
-            Download for Notion
+              Download for Notion
             </button>
           </div>
         </>
