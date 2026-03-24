@@ -206,6 +206,13 @@ export default function ToolPage() {
           </div>
           <p style={{ color: '#bbb', fontSize: '12px' }}>🔒 Your data never leaves your device</p>
         </div>
+        <p style={{ textAlign: 'center', fontSize: '12px', color: '#bbb', marginTop: '2rem' }}>
+          Using a different broker?{' '}
+          <a href="mailto:business.softcreated@gmail.com" style={{ color: '#888', textDecoration: 'underline' }}>
+            Send us the broker name
+          </a>{' '}
+          and we'll work on adding support in a future update. 🖤
+        </p>
       </main>
     )
   }
@@ -320,6 +327,13 @@ export default function ToolPage() {
           </div>
         </>
       )}
+      <p style={{ textAlign: 'center', fontSize: '12px', color: '#bbb', marginTop: '2rem' }}>
+        Using a different broker?{' '}
+        <a href="mailto:business.softcreated@gmail.com" style={{ color: '#888', textDecoration: 'underline' }}>
+          Send us the broker name
+        </a>{' '}
+        and we'll work on adding support in a future update. 🖤
+      </p>
     </main>
   )
 }

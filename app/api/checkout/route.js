@@ -6,21 +6,16 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 export async function POST(request) {
   try {
     const { userId } = await auth()
-    console.log('userId:', userId)
 
     if (!userId) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    console.log('body:', body)
-    const { priceId } = body
+    const { priceId } = await request.json()
 
     if (!priceId) {
       return Response.json({ error: 'No price selected' }, { status: 400 })
     }
-
-    console.log('priceId:', priceId)
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -33,7 +28,6 @@ export async function POST(request) {
 
     return Response.json({ url: session.url })
   } catch (error) {
-    console.error('Checkout error:', error)
     return Response.json({ error: error.message }, { status: 500 })
   }
 }
