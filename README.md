@@ -3,7 +3,7 @@
 A subscription web app that converts Tradovate CSV exports into 
 Notion-ready import files — built specifically for 
 [The Trader's Diary](https://softcreated.gumroad.com), 
-a Notion trading journal for women.
+a Notion trading journal.
 
 ## What it does
 
