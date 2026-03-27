@@ -1,6 +1,7 @@
 'use client'
 import { UserButton } from '@clerk/nextjs'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 export default function ToolPage() {
   const [cleanedRows, setCleanedRows] = useState([])
@@ -100,7 +101,6 @@ export default function ToolPage() {
     const lines = text.trim().split(/\r?\n/)
     if (lines.length < 2) return
     const rows = []
-
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(',')
       if (cols.length < 13) continue
@@ -112,14 +112,8 @@ export default function ToolPage() {
       const date = parseDate(cols[10])
       const result = pnl >= 0 ? 'Win' : 'Loss'
       const isWin = pnl >= 0 ? 1 : 0
-      rows.push({
-        date, symbol, qty,
-        buyPrice: buyPrice.toFixed(2),
-        sellPrice: sellPrice.toFixed(2),
-        pnl, result, isWin
-      })
+      rows.push({ date, symbol, qty, buyPrice: buyPrice.toFixed(2), sellPrice: sellPrice.toFixed(2), pnl, result, isWin })
     }
-
     setCleanedRows(rows)
     setUploaded(true)
   }
@@ -127,26 +121,16 @@ export default function ToolPage() {
   async function downloadZip() {
     const JSZip = (await import('jszip')).default
     const zip = new JSZip()
-
     const tradeHeaders = ['Name', 'Date', 'Symbol', 'Qty', 'Entry Price', 'Exit Price', 'P&L', 'Result', 'Is Win', 'Account']
-    const tradeRows = cleanedRows.map(r => [
-      'Trade Review',
-      r.date, r.symbol, r.qty, r.buyPrice, r.sellPrice,
-      r.pnl.toFixed(2), r.result, r.isWin,
-      accountName || ''
-    ])
+    const tradeRows = cleanedRows.map(r => ['Trade Review', r.date, r.symbol, r.qty, r.buyPrice, r.sellPrice, r.pnl.toFixed(2), r.result, r.isWin, accountName || ''])
     const tradesCSV = [tradeHeaders, ...tradeRows].map(r => r.join(',')).join('\n')
     zip.file('1_trades.csv', tradesCSV)
-
     const dailyMap = {}
-    cleanedRows.forEach(r => {
-      if (!dailyMap[r.date]) dailyMap[r.date] = { date: r.date }
-    })
+    cleanedRows.forEach(r => { if (!dailyMap[r.date]) dailyMap[r.date] = { date: r.date } })
     const dailyHeaders = ['Name', 'Date']
     const dailyRows = Object.values(dailyMap).map(d => ['Trading Diary', d.date])
     const dailyCSV = [dailyHeaders, ...dailyRows].map(r => r.join(',')).join('\n')
     zip.file('2_daily_summary.csv', dailyCSV)
-
     const blob = await zip.generateAsync({ type: 'blob' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
@@ -154,79 +138,16 @@ export default function ToolPage() {
     a.click()
   }
 
-  if (loading) {
-    return (
-      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Importer Tool</h1>
-          <UserButton afterSignOutUrl="/" />
-        </div>
-        <p style={{ color: '#888', fontSize: '14px' }}>Checking subscription...</p>
-      </main>
-    )
-  }
-
-  if (!subscribed) {
-    return (
-      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Importer Tool</h1>
-          <UserButton afterSignOutUrl="/" />
-        </div>
-        <div style={{ border: '1px solid #eee', borderRadius: '16px', padding: '2.5rem', textAlign: 'center', background: '#fafaf8' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: '500', marginBottom: '0.5rem' }}>Subscribe to get access</h2>
-          <p style={{ color: '#888', fontSize: '14px', marginBottom: '2rem', lineHeight: '1.6' }}>
-            Clean and import your Tradovate trades into Notion instantly.<br />
-            Cancel anytime.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
-            <div style={{ border: '1.5px solid #eee', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', background: '#fff' }}>
-              <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Monthly</p>
-              <p style={{ fontSize: '1.75rem', fontWeight: '500', marginBottom: '4px' }}>$4.99</p>
-              <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '1.25rem' }}>per month</p>
-              <button
-                onClick={() => handleSubscribe(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY)}
-                style={{ width: '100%', background: '#0e0e0e', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
-                Get started
-              </button>
-            </div>
-            <div style={{ border: '1.5px solid #0e0e0e', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', background: '#fff', position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: '#0e0e0e', color: '#fff', fontSize: '11px', padding: '3px 12px', borderRadius: '99px', whiteSpace: 'nowrap' }}>
-                Best value
-              </div>
-              <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Yearly</p>
-              <p style={{ fontSize: '1.75rem', fontWeight: '500', marginBottom: '4px' }}>$39</p>
-              <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '1.25rem' }}>per year · save 35%</p>
-              <button
-                onClick={() => handleSubscribe(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_YEARLY)}
-                style={{ width: '100%', background: '#0e0e0e', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
-                Get started
-              </button>
-            </div>
-          </div>
-          <p style={{ color: '#bbb', fontSize: '12px' }}>🔒 Your data never leaves your device</p>
-        </div>
-        <p style={{ textAlign: 'center', fontSize: '12px', color: '#bbb', marginTop: '2rem' }}>
-          Using a different broker?{' '}
-          <a href="mailto:business.softcreated@gmail.com" style={{ color: '#888', textDecoration: 'underline' }}>
-            Send us the broker name
-          </a>{' '}
-          and we'll work on adding support in a future update. 🖤
-        </p>
-      </main>
-    )
-  }
-
-  return (
-    <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Importer Tool</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+  const Header = () => (
+    <header style={{ borderBottom: '1px solid #eee', padding: '1.25rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fafaf8' }}>
+      <Link href="/" style={{ fontWeight: '600', fontSize: '15px', textDecoration: 'none', color: '#1a1a1a' }}>SoftCreated</Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {subscribed && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
             <button
               onClick={canceled ? handleReactivate : handleCancel}
               disabled={canceling}
-              style={{ fontSize: '12px', color: canceled ? '#1a8a5a' : '#bbb', background: 'none', border: 'none', cursor: canceling ? 'default' : 'pointer', textDecoration: 'underline' }}>
+              style={{ fontSize: '12px', color: canceled ? '#2D9B8A' : '#bbb', background: 'none', border: 'none', cursor: canceling ? 'default' : 'pointer', textDecoration: 'underline' }}>
               {canceling ? 'Updating...' : canceled ? 'Reactivate subscription' : 'Cancel subscription'}
             </button>
             {periodEnd && (
@@ -235,105 +156,179 @@ export default function ToolPage() {
               </p>
             )}
           </div>
-          <UserButton afterSignOutUrl="/" />
-        </div>
+        )}
+        <UserButton afterSignOutUrl="/" />
       </div>
+    </header>
+  )
 
-      {!uploaded ? (
-        <label
-          onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#1a8a5a'; e.currentTarget.style.background = '#f0faf4' }}
-          onDragLeave={(e) => { e.currentTarget.style.borderColor = '#ccc'; e.currentTarget.style.background = '#fafaf8' }}
-          onDrop={(e) => {
-            e.preventDefault()
-            e.currentTarget.style.borderColor = '#ccc'
-            e.currentTarget.style.background = '#fafaf8'
-            const file = e.dataTransfer.files[0]
-            if (!file) return
-            setFileName(file.name)
-            const reader = new FileReader()
-            reader.onload = (ev) => processCSV(ev.target.result)
-            reader.readAsText(file)
-          }}
-          style={{ display: 'block', border: '1.5px dashed #ccc', borderRadius: '12px', padding: '3rem', textAlign: 'center', cursor: 'pointer', background: '#fafaf8', transition: 'border-color 0.15s, background 0.15s' }}>
-          <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
-          <p style={{ fontWeight: '500', marginBottom: '4px' }}>Upload your Tradovate CSV</p>
-          <p style={{ color: '#888', fontSize: '14px' }}>drag & drop or click to browse</p>
-          <p style={{ color: '#bbb', fontSize: '12px', marginTop: '12px' }}>🔒 Your data never leaves your device</p>
-        </label>
-      ) : (
-        <>
-          <div style={{ background: '#f0faf4', border: '1px solid #c3e6d0', borderRadius: '12px', padding: '1.25rem 1.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#1a8a5a', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+  const Footer = () => (
+    <footer style={{ borderTop: '1px solid #eee', padding: '1.25rem 2rem', marginTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+      <span style={{ fontSize: '13px', color: '#aaa' }}>© 2026 SoftCreated. All rights reserved.</span>
+      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+        <p style={{ fontSize: '12px', color: '#bbb', margin: 0 }}>
+          Using a different broker?{' '}
+          <a href="mailto:business.softcreated@gmail.com" style={{ color: '#888', textDecoration: 'underline' }}>
+            Send us the broker name
+          </a>
+        </p>
+        <a href="https://softcreated.gumroad.com" style={{ fontSize: '13px', color: '#aaa', textDecoration: 'none' }}>Gumroad</a>
+        <a href="https://www.instagram.com/softcreated" style={{ fontSize: '13px', color: '#aaa', textDecoration: 'none' }}>Instagram</a>
+      </div>
+    </footer>
+  )
+
+  if (loading) {
+    return (
+      <main style={{ fontFamily: 'sans-serif', background: '#fafaf8', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Header />
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p style={{ color: '#888', fontSize: '14px' }}>Checking subscription...</p>
+        </div>
+        <Footer />
+      </main>
+    )
+  }
+
+  if (!subscribed) {
+    return (
+      <main style={{ fontFamily: 'sans-serif', background: '#fafaf8', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Header />
+        <div style={{ flex: 1, maxWidth: '600px', width: '100%', margin: '0 auto', padding: '3rem 2rem' }}>
+          <div style={{ border: '1px solid #eee', borderRadius: '16px', padding: '2.5rem', textAlign: 'center', background: '#fff' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: '500', marginBottom: '0.5rem' }}>Subscribe to get access</h2>
+            <p style={{ color: '#888', fontSize: '14px', marginBottom: '2rem', lineHeight: '1.6' }}>
+              Clean and import your Tradovate trades into Notion instantly.<br />Cancel anytime.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '1.5rem' }}>
+              <div style={{ border: '1.5px solid #eee', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', background: '#fff' }}>
+                <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Monthly</p>
+                <p style={{ fontSize: '1.75rem', fontWeight: '500', marginBottom: '4px' }}>$4.99</p>
+                <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '1.25rem' }}>per month</p>
+                <button onClick={() => handleSubscribe(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MONTHLY)}
+                  style={{ width: '100%', background: '#0e0e0e', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                  Get started
+                </button>
+              </div>
+              <div style={{ border: '1.5px solid #0e0e0e', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', background: '#fff', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: '#0e0e0e', color: '#fff', fontSize: '11px', padding: '3px 12px', borderRadius: '99px', whiteSpace: 'nowrap' }}>
+                  Best value
+                </div>
+                <p style={{ fontSize: '12px', color: '#888', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Yearly</p>
+                <p style={{ fontSize: '1.75rem', fontWeight: '500', marginBottom: '4px' }}>$39</p>
+                <p style={{ fontSize: '12px', color: '#aaa', marginBottom: '1.25rem' }}>per year · save 35%</p>
+                <button onClick={() => handleSubscribe(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_YEARLY)}
+                  style={{ width: '100%', background: '#0e0e0e', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>
+                  Get started
+                </button>
+              </div>
             </div>
-            <div>
-              <p style={{ fontWeight: '500', fontSize: '14px', marginBottom: '2px' }}>File cleaned successfully</p>
-              <p style={{ fontSize: '13px', color: '#555' }}>{fileName} — {cleanedRows.length} trade{cleanedRows.length !== 1 ? 's' : ''} ready to import</p>
-            </div>
+            <p style={{ color: '#bbb', fontSize: '12px' }}>🔒 Your data never leaves your device</p>
           </div>
+        </div>
+        <Footer />
+      </main>
+    )
+  }
 
-          <div style={{ border: '1px solid #eee', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.25rem' }}>
-            <div style={{ padding: '10px 14px', background: '#f5f5f2', borderBottom: '1px solid #eee' }}>
-              <p style={{ fontSize: '11px', color: '#888', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Preview — first 3 trades</p>
+  return (
+    <main style={{ fontFamily: 'sans-serif', background: '#fafaf8', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <Header />
+      <div style={{ flex: 1, maxWidth: '600px', width: '100%', margin: '0 auto', padding: '3rem 2rem' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: '500', marginBottom: '2rem' }}>Trade Importer Tool</h1>
+
+        {!uploaded ? (
+          <label
+            onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#2D9B8A'; e.currentTarget.style.background = '#f0faf4' }}
+            onDragLeave={(e) => { e.currentTarget.style.borderColor = '#ccc'; e.currentTarget.style.background = '#fafaf8' }}
+            onDrop={(e) => {
+              e.preventDefault()
+              e.currentTarget.style.borderColor = '#ccc'
+              e.currentTarget.style.background = '#fafaf8'
+              const file = e.dataTransfer.files[0]
+              if (!file) return
+              setFileName(file.name)
+              const reader = new FileReader()
+              reader.onload = (ev) => processCSV(ev.target.result)
+              reader.readAsText(file)
+            }}
+            style={{ display: 'block', border: '1.5px dashed #ccc', borderRadius: '12px', padding: '3rem', textAlign: 'center', cursor: 'pointer', background: '#fafaf8', transition: 'border-color 0.15s, background 0.15s' }}>
+            <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
+            <p style={{ fontWeight: '500', marginBottom: '4px' }}>Upload your Tradovate CSV</p>
+            <p style={{ color: '#888', fontSize: '14px' }}>drag & drop or click to browse</p>
+            <p style={{ color: '#bbb', fontSize: '12px', marginTop: '12px' }}>🔒 Your data never leaves your device</p>
+          </label>
+        ) : (
+          <>
+            <div style={{ background: '#f0faf4', border: '1px solid #c3e6d0', borderRadius: '12px', padding: '1.25rem 1.5rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#2D9B8A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <div>
+                <p style={{ fontWeight: '500', fontSize: '14px', marginBottom: '2px' }}>File cleaned successfully</p>
+                <p style={{ fontSize: '13px', color: '#555' }}>{fileName} — {cleanedRows.length} trade{cleanedRows.length !== 1 ? 's' : ''} ready to import</p>
+              </div>
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <thead>
-                <tr>
-                  {['Date', 'Symbol', 'P&L', 'Result'].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '8px 14px', color: '#888', fontWeight: '500', borderBottom: '1px solid #eee' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {cleanedRows.slice(0, 3).map((r, i) => (
-                  <tr key={i} style={{ borderBottom: i < 2 ? '1px solid #f5f5f5' : 'none' }}>
-                    <td style={{ padding: '8px 14px', fontFamily: 'monospace' }}>{r.date}</td>
-                    <td style={{ padding: '8px 14px' }}>{r.symbol}</td>
-                    <td style={{ padding: '8px 14px', color: r.pnl >= 0 ? '#1a8a5a' : '#c0392b', fontWeight: '500' }}>${r.pnl.toFixed(2)}</td>
-                    <td style={{ padding: '8px 14px' }}>
-                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', background: r.pnl >= 0 ? '#e8f5ee' : '#fdecea', color: r.pnl >= 0 ? '#1a8a5a' : '#c0392b', fontWeight: '500' }}>
-                        {r.pnl >= 0 ? 'Win' : 'Loss'}
-                      </span>
-                    </td>
+
+            <div style={{ border: '1px solid #eee', borderRadius: '12px', overflow: 'hidden', marginBottom: '1.25rem' }}>
+              <div style={{ padding: '10px 14px', background: '#f5f5f2', borderBottom: '1px solid #eee' }}>
+                <p style={{ fontSize: '11px', color: '#888', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Preview — first 3 trades</p>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr>
+                    {['Date', 'Symbol', 'P&L', 'Result'].map(h => (
+                      <th key={h} style={{ textAlign: 'left', padding: '8px 14px', color: '#888', fontWeight: '500', borderBottom: '1px solid #eee' }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {cleanedRows.slice(0, 3).map((r, i) => (
+                    <tr key={i} style={{ borderBottom: i < 2 ? '1px solid #f5f5f5' : 'none' }}>
+                      <td style={{ padding: '8px 14px', fontFamily: 'monospace' }}>{r.date}</td>
+                      <td style={{ padding: '8px 14px' }}>{r.symbol}</td>
+                      <td style={{ padding: '8px 14px', color: r.pnl >= 0 ? '#2D9B8A' : '#c0392b', fontWeight: '500' }}>${r.pnl.toFixed(2)}</td>
+                      <td style={{ padding: '8px 14px' }}>
+                        <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '99px', background: r.pnl >= 0 ? '#e8f5ee' : '#fdecea', color: r.pnl >= 0 ? '#2D9B8A' : '#c0392b', fontWeight: '500' }}>
+                          {r.pnl >= 0 ? 'Win' : 'Loss'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px' }}>
-              Account Name <span style={{ color: '#aaa', fontWeight: '400' }}>(optional)</span>
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Apex Funded, Personal, Tradovate Live"
-              value={accountName}
-              onChange={(e) => setAccountName(e.target.value)}
-              style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-            />
-            <p style={{ fontSize: '11px', color: '#aaa', marginTop: '6px' }}>This will tag all imported trades with this account name in Notion.</p>
-          </div>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', marginBottom: '6px' }}>
+                Account Name <span style={{ color: '#aaa', fontWeight: '400' }}>(optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Apex Funded, Personal, Tradovate Live"
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+              />
+              <p style={{ fontSize: '11px', color: '#aaa', marginTop: '6px' }}>This will tag all imported trades with this account name in Notion.</p>
+            </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button onClick={() => { setUploaded(false); setCleanedRows([]); setFileName(''); setAccountName('') }} style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: '1px solid #ddd', background: 'none', cursor: 'pointer', flex: 1 }}>
-              Upload new file
-            </button>
-            <button onClick={downloadZip} style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#0e0e0e', color: '#fff', cursor: 'pointer', flex: 2 }}>
-              Download for Notion
-            </button>
-          </div>
-        </>
-      )}
-      <p style={{ textAlign: 'center', fontSize: '12px', color: '#bbb', marginTop: '2rem' }}>
-        Using a different broker?{' '}
-        <a href="mailto:business.softcreated@gmail.com" style={{ color: '#888', textDecoration: 'underline' }}>
-          Send us the broker name
-        </a>{' '}
-        and we'll work on adding support in a future update. 🖤
-      </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => { setUploaded(false); setCleanedRows([]); setFileName(''); setAccountName('') }}
+                style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: '1px solid #ddd', background: 'none', cursor: 'pointer', flex: 1 }}>
+                Upload new file
+              </button>
+              <button onClick={downloadZip}
+                style={{ fontSize: '13px', padding: '10px 16px', borderRadius: '8px', border: 'none', background: '#0e0e0e', color: '#fff', cursor: 'pointer', flex: 2 }}>
+                Download for Notion
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+      <Footer />
     </main>
   )
 }
