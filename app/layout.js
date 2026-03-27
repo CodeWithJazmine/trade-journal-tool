@@ -1,7 +1,7 @@
 import { ClerkProvider } from '@clerk/nextjs'
 
 export const metadata = {
-  title: 'Trade Journal Tool',
+  title: 'Trade Importer Tool',
   description: 'Clean your Tradovate CSV for Notion',
 }
 
