@@ -158,7 +158,7 @@ export default function ToolPage() {
     return (
       <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Journal Cleaner</h1>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Importer Tool</h1>
           <UserButton afterSignOutUrl="/" />
         </div>
         <p style={{ color: '#888', fontSize: '14px' }}>Checking subscription...</p>
@@ -170,7 +170,7 @@ export default function ToolPage() {
     return (
       <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Journal Cleaner</h1>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Importer Tool</h1>
           <UserButton afterSignOutUrl="/" />
         </div>
         <div style={{ border: '1px solid #eee', borderRadius: '16px', padding: '2.5rem', textAlign: 'center', background: '#fafaf8' }}>
@@ -220,7 +220,7 @@ export default function ToolPage() {
   return (
     <main style={{ maxWidth: '600px', margin: '0 auto', padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Journal Cleaner</h1>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: '500' }}>Trade Importer Tool</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
             <button
